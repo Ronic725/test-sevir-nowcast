@@ -10,8 +10,9 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-# Add src to path
-sys.path.append('src/')
+# Add parent directories to path to access original repo modules
+sys.path.append('../../')
+sys.path.append('../../src/')
 
 def create_test_sequence():
     """Create a single test sequence similar to training data"""

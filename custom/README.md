@@ -11,14 +11,16 @@ custom/
 │   └── train_limited_data.py       # Limited data training for resource-constrained systems
 ├── testing/            # Model testing and evaluation
 │   ├── test_trained_model.py       # Basic model testing on synthetic data
-│   ├── test_sevir_compatible.py    # SEVIR format compatibility testing
 │   ├── test_realistic_sevir.py     # Testing on realistic weather patterns
 │   ├── test_real_sevir.py          # Testing on real SEVIR data (requires download)
-│   └── analyze_performance.py      # Detailed performance analysis
+│   ├── analyze_performance.py      # Detailed performance analysis
+│   ├── inspect_sevir_data.py       # SEVIR data inspection utility
+│   └── sevir_data_loader.py        # Efficient data loading utility
 ├── results/            # Generated outputs and visualizations
 │   ├── *.png           # Visualization results
 │   └── *.h5            # Test data files
-└── experiments/        # Future experimental scripts
+└── experiments/        # Data download and experimental scripts
+    └── download_sevir_data.py      # Real SEVIR data download utility
 ```
 
 ## Quick Start
@@ -44,8 +46,9 @@ python train_limited_data.py --num_samples 512 --epochs 10 --loss_type mse --bat
 ```bash
 cd custom/testing
 python test_trained_model.py           # Basic synthetic test
-python test_realistic_sevir.py         # Realistic weather patterns
+python test_realistic_sevir.py         # Realistic weather patterns  
 python test_real_sevir.py              # Real SEVIR data (if available)
+python analyze_performance.py          # Detailed performance analysis
 ```
 
 ## Training Parameters

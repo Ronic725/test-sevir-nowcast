@@ -5,7 +5,10 @@ Supports: synthetic data, small datasets, and efficient batch processing
 """
 import os
 import sys
-sys.path.append('src/')
+
+# Add parent directories to path to access original repo modules
+sys.path.append('../../')
+sys.path.append('../../src/')
 
 import h5py
 import numpy as np

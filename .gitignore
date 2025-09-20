@@ -12,4 +12,5 @@ data/
 logs/
 ./models
 
-
+.vscode/ # Visual Studio Code settings
+custom/results/
