@@ -149,7 +149,7 @@ def analyze_data_loading_strategy(filepath):
                         print(f"      Range: {sample_event.min():.2f} to {sample_event.max():.2f}")
                         print(f"      Non-zero pixels: {np.count_nonzero(sample_event):,} / {sample_event.size:,}")
                         
-                        # Check for realistic radar values
+                        # Check for synthetic radar values
                         if sample_event.max() > 0:
                             high_values = np.sum(sample_event > 40)  # Strong reflectivity
                             moderate_values = np.sum((sample_event > 10) & (sample_event <= 40))
@@ -202,8 +202,8 @@ if data is not None:
     print(f"Memory usage: {{data.nbytes / (1024**2):.1f}}MB")
 """)
 
-def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4):
-    """Plot sample SEVIR VIL data for visualization"""
+def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, output_dir=None):
+    """Plot sample SEVIR VIL data for visualization with controlled seeding"""
     print(f"\n📊 Plotting SEVIR VIL data from: {os.path.basename(filepath)}")
     
     try:
@@ -215,34 +215,18 @@ def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4):
             vil_data = f['vil']
             print(f"   📈 VIL dataset shape: {vil_data.shape}")
             
-            # User input for sampling strategy
-            print(f"\n🎲 Sampling Options:")
-            print(f"   1. Sequential (same events each time)")
-            print(f"   2. Random (different events each time)")
-            
-            while True:
-                try:
-                    choice = input("Choose sampling method (1 or 2): ").strip()
-                    if choice in ['1', '2']:
-                        break
-                    print("Please enter 1 or 2")
-                except KeyboardInterrupt:
-                    print("\n   ❌ Operation cancelled")
-                    return False
-            
-            # Load data based on user choice
+            # Use seeded random sampling for consistency
             max_events = min(num_events, vil_data.shape[0])
             
-            if choice == '2':  # Random sampling
-                import random
-                available_indices = list(range(vil_data.shape[0]))
-                selected_indices = sorted(random.sample(available_indices, max_events))
-                sample_data = vil_data[selected_indices]
-                print(f"   🎲 Randomly selected events: {selected_indices}")
-            else:  # Sequential sampling
-                sample_data = vil_data[:max_events]
-                selected_indices = list(range(max_events))
-                print(f"   📈 Sequential events: {selected_indices}")
+            # Set random seed for reproducible sampling
+            import random
+            random.seed(seed)
+            np.random.seed(seed)
+            
+            available_indices = list(range(vil_data.shape[0]))
+            selected_indices = sorted(random.sample(available_indices, max_events))
+            sample_data = vil_data[selected_indices]
+            print(f"   🎲 Randomly selected events (seed={seed}): {selected_indices}")
             
             print(f"   📊 Loaded {max_events} events for visualization")
             print(f"   🌩️  Data range: {sample_data.min():.2f} to {sample_data.max():.2f} dBZ")
@@ -289,47 +273,33 @@ def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4):
                 cbar = fig.colorbar(last_im, ax=axes, label='Reflectivity (dBZ)', 
                                    shrink=0.9, aspect=25)
             
-            # User input for saving the plot
-            print(f"\n💾 Save Options:")
-            print(f"   1. Just display (don't save)")
-            print(f"   2. Save PNG file")
+            # Determine data type from filename and path for output naming
+            filename_base = os.path.basename(filepath).lower()
             
-            while True:
-                try:
-                    save_choice = input("Choose save option (1 or 2): ").strip()
-                    if save_choice in ['1', '2']:
-                        break
-                    print("Please enter 1 or 2")
-                except KeyboardInterrupt:
-                    print("\n   ❌ Operation cancelled")
-                    return False
-            
-            if save_choice == '2':  # Save PNG
-                # Determine data type from filename and path for output naming
-                filename_base = os.path.basename(filepath).lower()
-                
-                # Check if it's synthetic data
-                if 'synthetic' in filename_base or 'realistic' in filename_base or 'test' in filename_base:
-                    data_type = "synthetic"
-                elif 'sevir_vil_stormevents' in filename_base or 'vil' in os.path.dirname(filepath).lower():
-                    data_type = "true_sevir"
-                else:
-                    data_type = "unknown"
-                
-                # Save plot with descriptive filename
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                if choice == '2':  # Random sampling
-                    filename = f"sevir_vil_plot_{data_type}_random_{timestamp}.png"
-                else:  # Sequential sampling
-                    filename = f"sevir_vil_plot_{data_type}_sequential_{timestamp}.png"
-                
-                plt.savefig(filename, dpi=150, bbox_inches='tight')
-                print(f"   ✅ Plot saved to: {filename}")
+            # Check if it's synthetic data
+            if 'synthetic' in filename_base or 'synthetic' in filename_base or 'test' in filename_base:
+                data_type = "synthetic"
+            elif 'sevir_vil_stormevents' in filename_base or 'vil' in os.path.dirname(filepath).lower():
+                data_type = "true_sevir"
             else:
-                print(f"   📺 Displaying plot without saving")
+                data_type = "unknown"
+            
+            # Save plot with descriptive filename including seed notation
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"sevir_vil_plot_{data_type}_s{seed}_{timestamp}.png"
+            
+            # Create output directory if specified and doesn't exist
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                full_path = os.path.join(output_dir, filename)
+            else:
+                full_path = filename
+
+            plt.savefig(full_path, dpi=150, bbox_inches='tight')
+            print(f"   ✅ Plot saved to: {full_path}")
             
             # Show statistics
-            print(f"\n   📈 Data Statistics:")
+            print(f"\n   📈 Data Statistics (seed={seed}):")
             print(f"      Non-zero pixels: {np.count_nonzero(sample_data):,} / {sample_data.size:,}")
             print(f"      Mean reflectivity: {sample_data.mean():.2f} dBZ")
             print(f"      Max reflectivity: {sample_data.max():.2f} dBZ")
@@ -420,7 +390,7 @@ class SEVIRDataLoader:
     print(f"   ✅ Created: {os.path.relpath(loader_path)}")
 
 def main():
-    """Main inspection function"""
+    """Main inspection function with controlled seeding"""
     print_banner()
     
     # Find SEVIR files
@@ -430,14 +400,25 @@ def main():
         print("\n❌ No SEVIR data files found. Please run download script first.")
         return 1
     
+    # Configuration for reproducible analysis
+    seed = 42
+    num_events = 3
+    frames_per_event = 4
+    output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../results/sevir_dataset'))
+    
+    print(f"\n🎲 Analysis Configuration:")
+    print(f"   Random seed: {seed} (notation: s{seed})")
+    print(f"   Events to analyze: {num_events}")
+    print(f"   Frames per event: {frames_per_event}")
+    
     # Inspect each file
     for filepath, size_gb, size_bytes in sevir_files:
         print(f"\n{'='*60}")
         inspect_sevir_structure(filepath)
         analyze_data_loading_strategy(filepath)
         
-        # Plot VIL data if available
-        plot_sevir_vil_data(filepath, num_events=2, frames_per_event=4)
+        # Plot VIL data if available with controlled seeding
+        plot_sevir_vil_data(filepath, num_events=num_events, frames_per_event=frames_per_event, seed=seed, output_dir=output_dir)
         
         # Only generate code for the largest/main file
         if size_gb > 1.0:  # Only for substantial files
@@ -450,17 +431,19 @@ def main():
     print(f"   📊 Found {len(sevir_files)} SEVIR data file(s)")
     total_size = sum(size_gb for _, size_gb, _ in sevir_files)
     print(f"   💾 Total size: {total_size:.2f}GB")
+    print(f"   🎲 Seed used: {seed} (notation: s{seed})")
     print(f"   ⚡ Recommended approach: Load small batches (10-50 events)")
     print(f"   🧪 Next step: Test with sample data first")
-    print(f"   📊 Visualization: VIL plots saved as PNG files")
+    print(f"   📊 Visualization: VIL plots saved with seed notation")
     
     print(f"\n🚀 Quick test commands:")
     print(f"   python custom/testing/sevir_data_loader.py")
     print(f"   python -c \"exec(open('custom/testing/sevir_data_loader.py').read())\"")
-    print(f"\n📊 To plot specific data:")
+    print(f"\n📊 To plot specific data with seed:")
     print(f"   # In Python:")
     print(f"   from custom.testing.inspect_sevir_data import plot_sevir_vil_data")
-    print(f"   plot_sevir_vil_data('path/to/sevir/file.h5', num_events=5)")
+    print(f"   plot_sevir_vil_data('path/to/sevir/file.h5', num_events=5, seed={seed})")
+    print(f"\n🔍 For consistency with test_actual_sevir.py, use seed={seed}")
 
 if __name__ == "__main__":
     main()

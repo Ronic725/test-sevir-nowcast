@@ -46,7 +46,7 @@ class LimitedDataTrainer:
         """Create synthetic radar-like data for training"""
         logger.info(f"Creating {self.num_samples} synthetic radar sequences...")
         
-        # Create realistic radar patterns (not just random noise)
+        # Create synthetic radar patterns (not just random noise)
         X_data = []
         y_data = []
         
