@@ -32,7 +32,7 @@ SEVIR_SCALE = 47.54
 # Project paths
 DATA_DIR = PROJECT_ROOT / "data"
 MODELS_DIR = PROJECT_ROOT / "models"
-RESULTS_DIR = PROJECT_ROOT / "custom" / "results"
+RESULTS_DIR = PROJECT_ROOT / "custom" / "results" / "model_performance"
 
 # Parameters
 NUM_SAMPLES = 5  # Number of samples to test

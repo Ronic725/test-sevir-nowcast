@@ -202,7 +202,7 @@ if data is not None:
     print(f"Memory usage: {{data.nbytes / (1024**2):.1f}}MB")
 """)
 
-def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, output_dir=None):
+def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42):
     """Plot sample SEVIR VIL data for visualization with controlled seeding"""
     print(f"\n📊 Plotting SEVIR VIL data from: {os.path.basename(filepath)}")
     
@@ -288,15 +288,8 @@ def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, out
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"sevir_vil_plot_{data_type}_s{seed}_{timestamp}.png"
             
-            # Create output directory if specified and doesn't exist
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-                full_path = os.path.join(output_dir, filename)
-            else:
-                full_path = filename
-
-            plt.savefig(full_path, dpi=150, bbox_inches='tight')
-            print(f"   ✅ Plot saved to: {full_path}")
+            plt.savefig(filename, dpi=150, bbox_inches='tight')
+            print(f"   ✅ Plot saved to: {filename}")
             
             # Show statistics
             print(f"\n   📈 Data Statistics (seed={seed}):")
@@ -404,7 +397,7 @@ def main():
     seed = 42
     num_events = 3
     frames_per_event = 4
-    output_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../results/sevir_dataset'))
+    output_dir = "../../results/sevir_dataset"
     
     print(f"\n🎲 Analysis Configuration:")
     print(f"   Random seed: {seed} (notation: s{seed})")
@@ -418,7 +411,7 @@ def main():
         analyze_data_loading_strategy(filepath)
         
         # Plot VIL data if available with controlled seeding
-        plot_sevir_vil_data(filepath, num_events=num_events, frames_per_event=frames_per_event, seed=seed, output_dir=output_dir)
+        plot_sevir_vil_data(filepath, num_events=num_events, frames_per_event=frames_per_event, seed=seed)
         
         # Only generate code for the largest/main file
         if size_gb > 1.0:  # Only for substantial files
