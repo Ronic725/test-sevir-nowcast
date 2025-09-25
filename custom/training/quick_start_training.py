@@ -9,8 +9,13 @@ import subprocess
 import sys
 
 # Add parent directories to path to access original repo modules
-sys.path.append('../../')
-sys.path.append('../../src/')
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Add paths relative to script location, not current working directory
+repo_root = os.path.join(script_dir, '../../')
+src_dir = os.path.join(script_dir, '../../src/')
+sys.path.append(repo_root)
+sys.path.append(src_dir)
 
 def print_banner():
     print("🌩️  SEVIR Limited Data Training - Quick Start")
@@ -57,15 +62,19 @@ def show_training_options():
         print(f"   📝 {opt['desc']}")
         print(f"   ⏱️  Time: {opt['time']}")
         print(f"   💾 Memory: {opt['memory']}")
-        print(f"   🖥️  Command: python train_limited_data.py {opt['cmd']}")
+        print(f"   🖥️  Command: python custom/training/train_limited_data.py {opt['cmd']}")
         print()
 
 def run_training(option):
     """Run training based on selected option"""
+    # Get the directory where this script is located to find train_limited_data.py
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    train_script = os.path.join(script_dir, "train_limited_data.py")
+    
     commands = {
-        1: ["python", "train_limited_data.py", "--num_samples", "256", "--epochs", "5", "--loss_type", "mse"],
-        2: ["python", "train_limited_data.py", "--num_samples", "1024", "--epochs", "15", "--loss_type", "mse"],
-        3: ["python", "train_limited_data.py", "--num_samples", "2048", "--epochs", "20", "--loss_type", "vgg"]
+        1: ["python", train_script, "--num_samples", "256", "--epochs", "5", "--loss_type", "mse"],
+        2: ["python", train_script, "--num_samples", "1024", "--epochs", "15", "--loss_type", "mse"],
+        3: ["python", train_script, "--num_samples", "2048", "--epochs", "20", "--loss_type", "vgg"]
     }
     
     if option in commands:
@@ -93,7 +102,7 @@ def show_custom_options():
     print("  --data_type: Data type (synthetic, real)")
     print("  --validation_split: Validation ratio (0.2, 0.3, etc.)")
     print("\nExample:")
-    print("  python train_limited_data.py --num_samples 512 --epochs 10 --loss_type mae")
+    print("  python custom/training/train_limited_data.py --num_samples 512 --epochs 10 --loss_type mae")
     print("\nMemory Guidelines for M1 MacBook Pro (16GB):")
     print("  • num_samples ≤ 1024 + batch_size ≤ 8: Safe")
     print("  • num_samples ≤ 2048 + batch_size ≤ 4: Should work")

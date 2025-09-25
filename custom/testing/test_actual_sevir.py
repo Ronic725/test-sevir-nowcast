@@ -167,8 +167,8 @@ def load_real_sevir_data(num_samples=5):
         return None, None
 
 
-def load_our_model():
-    """Load our trained model"""
+def load_our_model(model_name=None):
+    """Load our trained model - specify model_name to choose specific model"""
     print("🤖 Loading our trained model...")
     
     # Find all trained model directories
@@ -179,35 +179,27 @@ def load_our_model():
         print(f"💡 Please ensure you have a trained model in: {MODELS_DIR}")
         return None
     
-    # Get latest trained model directory
-    latest_model_dir = max(model_dirs, key=lambda x: x.stat().st_mtime)
-    model_path = latest_model_dir / "model_mse.h5"
+    # List available models
+    print("📁 Available trained models:")
+    for i, model_dir in enumerate(sorted(model_dirs, key=lambda x: x.stat().st_mtime, reverse=True)):
+        print(f"   {i+1}. {model_dir.name}")
     
-    if not model_path.exists():
-        print(f"❌ Model file not found: {model_path}")
-        return None
+    # Choose model
+    if model_name:
+        # Find specific model by name
+        selected_dir = None
+        for model_dir in model_dirs:
+            if model_name in model_dir.name:
+                selected_dir = model_dir
+                break
+        if not selected_dir:
+            print(f"❌ Model '{model_name}' not found")
+            return None
+    else:
+        # Use latest (current behavior)
+        selected_dir = max(model_dirs, key=lambda x: x.stat().st_mtime)
     
-    print(f"📁 Loading model from: {model_path}")
-    
-    try:
-        model = tf.keras.models.load_model(str(model_path), compile=False)
-        print(f"✅ Model loaded successfully")
-        print(f"   Parameters: {model.count_params():,}")
-        return model
-    except Exception as e:
-        print(f"❌ Error loading model: {e}")
-        return None
-
-    model_dirs = [d for d in MODELS_DIR.iterdir() if d.is_dir() and d.name.startswith('trained_')]
-    
-    if not model_dirs:
-        print("❌ No trained model found in models directory")
-        print(f"💡 Please ensure you have a trained model in: {MODELS_DIR}")
-        return None
-    
-    # Get latest trained model directory
-    latest_model_dir = max(model_dirs, key=lambda x: x.stat().st_mtime)
-    model_path = latest_model_dir / "model_mse.h5"
+    model_path = selected_dir / "model_mse.h5"
     
     if not model_path.exists():
         print(f"❌ Model file not found: {model_path}")
@@ -323,10 +315,15 @@ def visualize_real_sevir_results(X_test, y_test, y_pred, y_baseline=None, sample
             axes[3, i].set_title(f'Persistence {frame_idx+14}')
             axes[3, i].axis('off')
     
-    # Add colorbar
-    fig.colorbar(im, ax=axes.ravel().tolist(), label='VIL (dBZ)', shrink=0.8)
-    
+    # Apply tight_layout first, then add colorbar with proper spacing
     plt.tight_layout()
+    
+    # Create space for colorbar by adjusting subplot parameters
+    plt.subplots_adjust(right=0.85)
+    
+    # Add colorbar
+    cbar_ax = fig.add_axes((0.87, 0.1, 0.03, 0.8))  # (left, bottom, width, height)
+    fig.colorbar(im, cax=cbar_ax, label='VIL (dBZ)')
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = RESULTS_DIR / f"real_sevir_test_{timestamp}.png"
     RESULTS_DIR.mkdir(exist_ok=True)
@@ -351,6 +348,11 @@ def analyze_frame_by_frame(y_test, y_pred, y_baseline=None):
             print(f"   Frame {t+1:2d}: Our MAE={mae_ours:.4f}")
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='Test model on real SEVIR data')
+    parser.add_argument('--model', type=str, help='Specific model directory name to test (partial name match)')
+    args = parser.parse_args()
+    
     print("🌩️  Testing Trained Model on Real SEVIR Data")
     print("=" * 60)
     
@@ -360,8 +362,8 @@ def main():
         print("❌ Failed to load SEVIR data. Exiting.")
         return
     
-    # Load our model
-    model = load_our_model()
+    # Load our model (with optional specific model name)
+    model = load_our_model(args.model)
     if model is None:
         print("❌ Failed to load model. Exiting.")
         return

@@ -7,8 +7,13 @@ import os
 import sys
 
 # Add parent directories to path to access original repo modules
-sys.path.append('../../')
-sys.path.append('../../src/')
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Add paths relative to script location, not current working directory
+repo_root = os.path.join(script_dir, '../../')
+src_dir = os.path.join(script_dir, '../../src/')
+sys.path.append(repo_root)
+sys.path.append(src_dir)
 
 import h5py
 import numpy as np
