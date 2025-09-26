@@ -14,23 +14,16 @@ sys.path.insert(0, str(PROJECT_ROOT / "custom/streaming"))
 from sevir_data_streamer import SEVIRDataStreamer
 from realtime_predictor import RealtimePredictor
 
-def run_demo():
-    """Run a simple demo of the real-time system"""
-    print("🚀 SEVIR Real-time Prediction Demo")
-    print("=" * 50)
-    
-    # Paths - Update these based on your available files
-    data_file = PROJECT_ROOT / "data/sevir/vil/SEVIR_VIL_STORMEVENTS_2019_0101_0630.h5"
-    
-    # Try to find the latest trained model
+def find_available_models():
+    """Find all available trained models"""
     models_dir = PROJECT_ROOT / "models"
-    model_file = None
+    available_models = []
     
     # Check for different model directories
     model_dirs = [
-        models_dir / "trained_mse_20250924_202640",
+        models_dir / "trained_mse_20250918_120133",  # The good model first
         models_dir / "trained_mse_20250924_164649", 
-        models_dir / "trained_mse_20250918_120133",
+        models_dir / "trained_mse_20250924_202640",
         models_dir / "nowcast"
     ]
     
@@ -41,25 +34,60 @@ def run_demo():
         ]
         for potential_model in potential_models:
             if potential_model.exists():
-                model_file = potential_model
+                available_models.append({
+                    'path': potential_model,
+                    'dir': model_dir.name,
+                    'name': potential_model.name
+                })
                 break
-        if model_file:
-            break
+    
+    return available_models
+
+def select_model(model_name=None):
+    """Select a model either by name or interactively"""
+    available_models = find_available_models()
+    
+    if not available_models:
+        print("❌ No trained models found in models directory")
+        return None
+    
+    if model_name:
+        # Find specific model by name
+        for model in available_models:
+            if model_name in model['dir']:
+                print(f"✅ Selected model: {model['dir']}")
+                return model['path']
+        print(f"❌ Model '{model_name}' not found")
+        return None
+    
+    # Interactive selection
+    print("📁 Available trained models:")
+    for i, model in enumerate(available_models):
+        print(f"   {i+1}. {model['dir']} ({model['name']})")
+    
+    # Default to the first (recommended) model
+    print(f"🎯 Using recommended model: {available_models[0]['dir']}")
+    return available_models[0]['path']
+
+def run_demo(model_name=None):
+    """Run a simple demo of the real-time system"""
+    print("🚀 SEVIR Real-time Prediction Demo")
+    print("=" * 50)
+    
+    # Paths - Update these based on your available files
+    data_file = PROJECT_ROOT / "data/sevir/vil/SEVIR_VIL_STORMEVENTS_2019_0101_0630.h5"
+    
+    # Select model
+    model_file = select_model(model_name)
     
     if not data_file.exists():
         print(f"❌ Please ensure SEVIR data exists at: {data_file}")
         print("💡 You may need to run the data download script first")
         return
-    
+
     if not model_file or not model_file.exists():
-        print(f"❌ No trained model found in models directory")
-        print("💡 Available model directories:")
-        for d in models_dir.iterdir():
-            if d.is_dir():
-                print(f"   - {d.name}")
-        return
-    
-    print(f"✅ Using data file: {data_file}")
+        print(f"❌ Selected model not found")
+        return    print(f"✅ Using data file: {data_file}")
     print(f"✅ Using model: {model_file}")
     
     # Create streamer with fast interval for demo
@@ -159,10 +187,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SEVIR Real-time Prediction Demo')
     parser.add_argument('--test-streamer', action='store_true', 
                        help='Test only the data streamer component')
+    parser.add_argument('--model', type=str, 
+                       help='Specific model directory name to use (partial name match)')
     
     args = parser.parse_args()
     
     if args.test_streamer:
         test_streamer_only()
     else:
-        run_demo()
+        run_demo(args.model)

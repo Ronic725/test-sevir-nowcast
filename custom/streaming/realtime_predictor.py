@@ -134,7 +134,7 @@ class RealtimePredictor:
         Detect anomalies in predictions using threshold-based approach
         
         Args:
-            predictions: Predicted frames (normalized)
+            predictions: Predicted frames (model output, range 0-1)
             metadata: Metadata for input frames
             
         Returns:
