@@ -9,10 +9,16 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from datetime import datetime
+from pathlib import Path
 
-# Add parent directories to path to access original repo modules
-sys.path.append('../../')
-sys.path.append('../../src/')
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 def create_test_sequence():
     """Create a single test sequence similar to training data"""

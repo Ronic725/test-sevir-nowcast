@@ -7,15 +7,16 @@ Choose your training scenario based on your needs and resources
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-# Add parent directories to path to access original repo modules
-# Get the directory where this script is located
-script_dir = os.path.dirname(os.path.abspath(__file__))
-# Add paths relative to script location, not current working directory
-repo_root = os.path.join(script_dir, '../../')
-src_dir = os.path.join(script_dir, '../../src/')
-sys.path.append(repo_root)
-sys.path.append(src_dir)
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 def print_banner():
     print("🌩️  SEVIR Limited Data Training - Quick Start")

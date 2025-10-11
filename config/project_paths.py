@@ -66,10 +66,11 @@ class ProjectPaths:
     def _get_fallback_config() -> Dict[str, Any]:
         """Fallback configuration when YAML not available."""
         return {
-            'project': {'root': '.', 'src': 'src', 'data': 'data', 'models': 'models'},
+            'project': {'root': '.', 'src': 'src', 'data': 'data', 'models': 'models', 'logs': 'logs'},
             'data': {
                 'sevir': {
                     'vil_2019_h1': 'data/sevir/vil/SEVIR_VIL_STORMEVENTS_2019_0101_0630.h5',
+                    'catalog': 'data/CATALOG.csv',
                 },
             },
             'custom': {
@@ -118,7 +119,9 @@ class ProjectPaths:
                 raise KeyError(f"Invalid key path: {key_path}")
         
         # Convert string paths to Path objects
-        if isinstance(value, str) and ('/' in value or value == '.'):
+        # Paths can be: 1) contain '/', 2) be '.', or 3) be directory/file names under 'project' key
+        is_project_path = (keys[0] == 'project' and keys[-1] in ['root', 'src', 'data', 'models', 'logs'])
+        if isinstance(value, str) and ('/' in value or value == '.' or is_project_path):
             path = self._resolve_path(value)
             return str(path) if as_string else path
         

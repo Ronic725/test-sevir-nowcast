@@ -9,14 +9,21 @@ import time
 
 # Add project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "custom/streaming"))
+sys.path.insert(0, str(PROJECT_ROOT))
 
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
+
+# Now import from custom modules
+sys.path.insert(0, str(PROJECT_ROOT / "custom/streaming"))
 from sevir_data_streamer import SEVIRDataStreamer
 from realtime_predictor import RealtimePredictor
 
 def find_available_models():
     """Find all available trained models"""
-    models_dir = PROJECT_ROOT / "models"
+    models_dir = paths.models
     available_models = []
     
     # Check for different model directories
@@ -74,8 +81,8 @@ def run_demo(model_name=None):
     print("🚀 SEVIR Real-time Prediction Demo")
     print("=" * 50)
     
-    # Paths - Update these based on your available files
-    data_file = PROJECT_ROOT / "data/sevir/vil/SEVIR_VIL_STORMEVENTS_2019_0101_0630.h5"
+    # Use configured SEVIR data path
+    data_file = paths.sevir_vil_file
     
     # Select model
     model_file = select_model(model_name)

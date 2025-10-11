@@ -20,13 +20,17 @@ import queue
 # Add project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 from sevir_data_streamer import SEVIRDataStreamer
 
-# SEVIR constants
-SEVIR_MEAN = 33.44
-SEVIR_SCALE = 47.54
+# SEVIR constants from config
+SEVIR_MEAN = paths.sevir_mean
+SEVIR_SCALE = paths.sevir_scale
 
 class RealtimePredictor:
     """

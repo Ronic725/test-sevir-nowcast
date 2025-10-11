@@ -12,10 +12,16 @@ import h5py
 import numpy as np
 from datetime import datetime
 import shutil
+from pathlib import Path
 
-# Add parent directories to path
-sys.path.append('../../')
-sys.path.append('../../src/')
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 def print_banner():
     """Print banner with system info"""

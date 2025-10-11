@@ -13,12 +13,16 @@ from pathlib import Path
 # Add project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 from test_actual_sevir import load_real_sevir_data, SEVIR_SCALE
 
-# Project paths
-MODELS_DIR = PROJECT_ROOT / "models"
+# Project paths from config
+MODELS_DIR = paths.models
 
 def compare_all_models():
     """Test all available models and compare results"""

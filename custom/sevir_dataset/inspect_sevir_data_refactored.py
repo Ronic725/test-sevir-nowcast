@@ -6,6 +6,16 @@ Inspect the downloaded SEVIR data without loading everything into memory
 
 import os
 import sys
+from pathlib import Path
+
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 # Import the modular components
 from analysis.sevir_analysis import find_sevir_files, inspect_sevir_structure, analyze_data_loading_strategy, analyze_vil_units
@@ -101,7 +111,7 @@ def main():
         'num_events': 3,
         'frames_per_event': 4,
         'distribution_events': 50,
-        'output_dir': os.path.abspath(os.path.join(os.path.dirname(__file__), '../results/sevir_dataset'))
+        'output_dir': str(paths.root / 'custom' / 'results' / 'sevir_dataset')
     }
     
     print(f"\n🎲 Analysis Configuration:")

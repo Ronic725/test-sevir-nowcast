@@ -8,6 +8,16 @@ import os
 import sys
 import h5py
 import numpy as np
+from pathlib import Path
+
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 # Add the core directory to sys.path to import sevir_utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
@@ -19,7 +29,7 @@ def find_sevir_files(base_dir=None):
     print("\n📁 Searching for SEVIR data files...")
     
     if base_dir is None:
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../data'))
+        base_dir = str(paths.data)
     
     sevir_files = []
     

@@ -6,6 +6,19 @@ This script demonstrates how to use the refactored SEVIR analysis modules
 for various weather radar data analysis tasks.
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
+
 # Option 1: Import individual functions as needed
 from sevir_utils import convert_to_physical_units_with_thresholds, calculate_statistics
 from sevir_visualization import plot_sevir_vil_data, plot_vil_distribution
@@ -14,15 +27,13 @@ from sevir_analysis import find_sevir_files, inspect_sevir_structure
 # Option 2: Import everything from the package (alternative)
 # from sevir_package import *
 
-import os
-
 def example_basic_analysis():
     """Example: Basic file analysis and statistics"""
     print("=== Basic SEVIR File Analysis ===")
     
-    # Find SEVIR files
-    data_dir = "/Users/ronaldleung/Code/fyp-testing/neurips-2020-sevir/data/sevir"
-    file_info = find_sevir_files(data_dir)
+    # Find SEVIR files using configured data directory
+    data_dir = paths.data / "sevir"
+    file_info = find_sevir_files(str(data_dir))
     
     if file_info:
         # Analyze first file

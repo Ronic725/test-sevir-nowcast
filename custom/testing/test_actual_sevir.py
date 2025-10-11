@@ -16,7 +16,11 @@ from pathlib import Path
 # Add project root and src to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+# Import centralized configuration
+from config.project_paths import get_paths
+paths = get_paths()
+paths.setup_python_path()
 
 # Try to import the reader, with fallback
 try:
@@ -25,14 +29,14 @@ except ImportError:
     print("⚠️  nowcast_reader not found, using direct H5 loading")
     read_data = None
 
-# SEVIR normalization constants
-SEVIR_MEAN = 33.44
-SEVIR_SCALE = 47.54
+# SEVIR normalization constants from config
+SEVIR_MEAN = paths.sevir_mean
+SEVIR_SCALE = paths.sevir_scale
 
-# Project paths
-DATA_DIR = PROJECT_ROOT / "data"
-MODELS_DIR = PROJECT_ROOT / "models"
-RESULTS_DIR = PROJECT_ROOT / "custom" / "results" / "model_performance"
+# Project paths from config
+DATA_DIR = paths.data
+MODELS_DIR = paths.models
+RESULTS_DIR = paths.results_dir
 
 # Parameters
 NUM_SAMPLES = 5  # Number of samples to test
