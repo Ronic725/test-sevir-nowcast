@@ -1,0 +1,69 @@
+# Project Path Configuration
+# All paths are relative to the project root directory
+
+# Core directories
+project:
+  root: "."  # Auto-detected from cwd or script location
+  src: "src"
+  data: "data"
+  models: "models"
+  logs: "logs"
+
+# Data paths
+data:
+  sevir:
+    root: "data/sevir"
+    vil: "data/sevir/vil"
+    catalog: "data/CATALOG.csv"
+    # Specific SEVIR files
+    vil_2019_h1: "data/sevir/vil/SEVIR_VIL_STORMEVENTS_2019_0101_0630.h5"
+  interim: "data/interim"
+
+# Model paths
+models:
+  root: "models"
+  nowcast: "models/nowcast"
+  synrad: "models/synrad"
+  # Pattern for trained models
+  trained_pattern: "trained_*"
+
+# Custom directories
+custom:
+  root: "custom"
+  
+  # Fine-tuning paths
+  fine_tuning:
+    root: "custom/fine_tuning"
+    cache: "custom/fine_tuning/cache"
+    outputs: "custom/fine_tuning/outputs"
+    # Specific files
+    events_cache: "custom/fine_tuning/cache/finetune_events.npz"
+    lora_adapter: "custom/fine_tuning/outputs/lora_adapter.npz"
+  
+  # Testing paths
+  testing:
+    root: "custom/testing"
+  
+  # Streaming paths
+  streaming:
+    root: "custom/streaming"
+  
+  # Training paths
+  training:
+    root: "custom/training"
+  
+  # Results paths
+  results:
+    root: "custom/results"
+    model_performance: "custom/results/model_performance"
+    realtime_predictions: "custom/results/realtime_predictions"
+    sevir_dataset: "custom/results/sevir_dataset"
+
+# SEVIR constants
+sevir:
+  mean: 33.44
+  scale: 47.54
+  input_frames: 13
+  target_frames: 12
+  spatial_size: 384
+  frame_interval_minutes: 5
