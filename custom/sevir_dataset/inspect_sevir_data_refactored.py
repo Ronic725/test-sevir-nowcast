@@ -17,9 +17,9 @@ from config.project_paths import get_paths
 paths = get_paths()
 paths.setup_python_path()
 
-# Import the modular components
-from analysis.sevir_analysis import find_sevir_files, inspect_sevir_structure, analyze_data_loading_strategy, analyze_vil_units
-from visualization.sevir_visualization import plot_sevir_vil_data, plot_vil_distribution
+# Import the modular components - use absolute imports
+from custom.sevir_dataset.analysis.sevir_analysis import find_sevir_files, inspect_sevir_structure, analyze_data_loading_strategy, analyze_vil_units
+from custom.sevir_dataset.visualization.sevir_visualization import plot_sevir_vil_data, plot_vil_distribution
 
 
 def print_banner():

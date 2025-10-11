@@ -19,7 +19,8 @@ from config.project_paths import get_paths
 paths = get_paths()
 paths.setup_python_path()
 
-from test_actual_sevir import load_real_sevir_data, SEVIR_SCALE
+# Import from custom.testing module
+from custom.testing.test_actual_sevir import load_real_sevir_data, SEVIR_SCALE
 
 # Project paths from config
 MODELS_DIR = paths.models
