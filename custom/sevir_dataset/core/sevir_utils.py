@@ -2,101 +2,110 @@
 """
 SEVIR Utilities Module
 Utility functions for SEVIR data analysis and conversion
+Based on NOAA NEXRAD Level III VIL product specification
 """
 
 import os
 import numpy as np
 
+# VIL Conversion Constants (from NOAA NEXRAD product 134 specification)
+# Data levels 2-254 represent VIL values 0-80 kg/m²
+# Data level 254 corresponds to VIL >= 80 kg/m²
+# Data levels 0 and 1 are "Below threshold" and "flagged data"
+VIL_SCALE = 80.0 / 254.0  # Approximately 0.315 kg/m² per data level
 
-def convert_to_physical_units_with_thresholds(data, data_type="auto", filepath=None):
+
+def convert_raw_vil_to_physical(raw_data):
     """
-    Convert SEVIR data to appropriate physical units and apply smart thresholds for visualization
+    Convert raw VIL data (uint8, 0-255) to physical units (kg/m²)
+    Based on NOAA NEXRAD Level III product 134 specification
+    
+    Data Level Mapping:
+    - 0: Below threshold → 0.0 kg/m²
+    - 1: Flagged data → 0.0 kg/m²
+    - 2-253: Linear mapping → (level * 80.0/254.0) kg/m²
+    - 254: VIL >= 80 kg/m² (saturation) → 80.0 kg/m²
+    - 255: Reserved/missing → 0.0 kg/m² (or NaN for strict handling)
     
     Args:
-        data: numpy array of SEVIR data
-        data_type: "auto", "vil_kg", "dBZ", or "synthetic"
-        filepath: optional filepath to auto-detect data type
+        raw_data: numpy array of raw VIL data (0-255)
+    
+    Returns:
+        numpy array of VIL in kg/m²
+    """
+    # Convert to float for calculation
+    physical_data = raw_data.astype(np.float32) * VIL_SCALE
+    
+    # Handle special values according to NOAA specification
+    physical_data[raw_data < 2] = 0.0          # Below threshold and flagged data
+    physical_data[raw_data == 254] = 80.0      # Explicitly set saturation to 80.0
+    physical_data[raw_data == 255] = 0.0       # Reserved/missing value → treat as zero
+    
+    return physical_data
+
+
+def convert_to_physical_units_with_thresholds(data, data_type="vil", filepath=None):
+    """
+    Convert SEVIR data to physical units and apply thresholds for visualization
+    
+    Args:
+        data: numpy array of SEVIR data (raw uint8 or already converted)
+        data_type: "vil" (raw VIL data from SEVIR) or "vil_physical" (already converted)
+        filepath: optional filepath for context
     
     Returns:
         tuple: (converted_data, vmin, vmax, units, thresholds_info)
     """
     
-    # Auto-detect data type if not specified
-    if data_type == "auto":
-        if filepath:
-            filename = os.path.basename(filepath).lower()
-            if 'synthetic' in filename:
-                data_type = "vil_kg"
-            elif 'sevir_vil_stormevents' in filename:
-                data_type = "dBZ"
-            else:
-                # Use data characteristics to guess
-                max_val = float(data.max())
-                if max_val > 100:
-                    data_type = "dBZ"
-                else:
-                    data_type = "vil_kg"
-        else:
-            # Use data range to guess
-            max_val = float(data.max())
-            data_type = "dBZ" if max_val > 100 else "vil_kg"
-    
-    # Convert based on detected/specified type
-    if data_type in ["vil_kg", "synthetic"]:
-        # VIL data in kg/m² (synthetic data)
-        converted_data = data.copy()  # Already in kg/m²
+    if data_type == "vil":
+        # Raw VIL data - convert to physical units
+        converted_data = convert_raw_vil_to_physical(data)
         units = "kg/m²"
         
-        # VIL thresholds for weather intensity
+        # VIL thresholds for weather intensity (based on meteorological standards)
         light_threshold = 20      # Light precipitation
         moderate_threshold = 45   # Moderate precipitation  
-        heavy_threshold = 65      # Heavy precipitation
+        heavy_threshold = 65      # Heavy precipitation / possible hail
         
-        # Set visualization range
+        # Set visualization range (0-80 kg/m² is the standard VIL range)
         vmin = 0
-        vmax = min(80, max(data.max(), 70))  # Cap at reasonable VIL maximum
+        vmax = 80
         
         thresholds_info = {
             "light": f"0-{light_threshold} {units} (light)",
             "moderate": f"{light_threshold}-{moderate_threshold} {units} (moderate)", 
             "heavy": f"{moderate_threshold}-{heavy_threshold} {units} (heavy)",
-            "severe": f"{heavy_threshold}+ {units} (severe)"
+            "severe": f"{heavy_threshold}+ {units} (severe/hail likely)"
         }
         
-    elif data_type == "dBZ":
-        # Radar reflectivity in dBZ (real SEVIR data)
-        converted_data = data.copy()  # Already in dBZ
-        units = "dBZ"
+    elif data_type == "vil_physical":
+        # Already in physical units
+        converted_data = data.copy()
+        units = "kg/m²"
         
-        # dBZ thresholds for precipitation intensity
-        light_threshold = 20      # Light rain
-        moderate_threshold = 35   # Moderate rain
-        heavy_threshold = 50      # Heavy rain/storms
-        severe_threshold = 65     # Severe storms
+        # VIL thresholds
+        light_threshold = 20
+        moderate_threshold = 45
+        heavy_threshold = 65
         
-        # Set visualization range - cap very high values for better contrast
         vmin = 0
-        data_max = float(data.max())
-        if data_max > 80:
-            vmax = min(80, data_max)  # Cap at 80 dBZ for better visualization of most weather
-        else:
-            vmax = data_max
-            
+        vmax = 80
+        
         thresholds_info = {
-            "light": f"0-{light_threshold} {units} (light rain)",
-            "moderate": f"{light_threshold}-{moderate_threshold} {units} (moderate rain)", 
-            "heavy": f"{moderate_threshold}-{heavy_threshold} {units} (heavy rain)",
-            "severe": f"{heavy_threshold}+ {units} (severe storms)"
+            "light": f"0-{light_threshold} {units} (light)",
+            "moderate": f"{light_threshold}-{moderate_threshold} {units} (moderate)", 
+            "heavy": f"{moderate_threshold}-{heavy_threshold} {units} (heavy)",
+            "severe": f"{heavy_threshold}+ {units} (severe/hail likely)"
         }
     
     else:
-        raise ValueError(f"Unknown data_type: {data_type}. Use 'auto', 'vil_kg', or 'dBZ'")
+        raise ValueError(f"Unknown data_type: {data_type}. Use 'vil' or 'vil_physical'")
     
-    print(f"   🔄 Converted to {units}: range [{converted_data.min():.1f}, {converted_data.max():.1f}]")
-    print(f"   📊 Visualization range: [{vmin:.1f}, {vmax:.1f}] {units}")
-    print(f"   🌡️  Intensity thresholds:")
+    print(f"   [INFO] Converted to {units}: range [{converted_data.min():.1f}, {converted_data.max():.1f}]")
+    print(f"   [INFO] Visualization range: [{vmin:.1f}, {vmax:.1f}] {units}")
+    print(f"   [INFO] Intensity thresholds:")
     for category, info in thresholds_info.items():
-        print(f"      • {info}")
+        print(f"      - {info}")
     
     return converted_data, vmin, vmax, units, thresholds_info
 
@@ -106,40 +115,26 @@ def get_weather_category_counts(data, units):
     Get pixel counts for different weather intensity categories
     
     Args:
-        data: numpy array of converted data
-        units: "kg/m²" or "dBZ"
+        data: numpy array of converted data (in kg/m²)
+        units: "kg/m²"
     
     Returns:
         tuple: (categories, counts, colors, category_labels)
     """
     flat_data = data.flatten()
     
-    if units == "kg/m²":
-        # VIL categories
-        categories = ['0', '0-5', '5-20', '20-45', '45-65', '>65']
-        counts = [
-            np.sum(flat_data == 0),
-            np.sum((flat_data > 0) & (flat_data <= 5)),
-            np.sum((flat_data > 5) & (flat_data <= 20)),
-            np.sum((flat_data > 20) & (flat_data <= 45)),
-            np.sum((flat_data > 45) & (flat_data <= 65)),
-            np.sum(flat_data > 65)
-        ]
-        colors = ['lightgray', 'lightblue', 'yellow', 'orange', 'red', 'darkred']
-        category_labels = ['None', 'Trace', 'Light', 'Moderate', 'Heavy', 'Severe']
-    else:
-        # dBZ categories
-        categories = ['0', '0-5', '5-20', '20-35', '35-50', '>50']
-        counts = [
-            np.sum(flat_data == 0),
-            np.sum((flat_data > 0) & (flat_data <= 5)),
-            np.sum((flat_data > 5) & (flat_data <= 20)),
-            np.sum((flat_data > 20) & (flat_data <= 35)),
-            np.sum((flat_data > 35) & (flat_data <= 50)),
-            np.sum(flat_data > 50)
-        ]
-        colors = ['lightgray', 'lightblue', 'yellow', 'orange', 'red', 'darkred']
-        category_labels = ['None', 'Trace', 'Light Rain', 'Moderate Rain', 'Heavy Rain', 'Severe Storms']
+    # VIL categories (data should be in kg/m²)
+    categories = ['0', '0-5', '5-20', '20-45', '45-65', '>65']
+    counts = [
+        np.sum(flat_data == 0),
+        np.sum((flat_data > 0) & (flat_data <= 5)),
+        np.sum((flat_data > 5) & (flat_data <= 20)),
+        np.sum((flat_data > 20) & (flat_data <= 45)),
+        np.sum((flat_data > 45) & (flat_data <= 65)),
+        np.sum(flat_data > 65)
+    ]
+    colors = ['lightgray', 'lightblue', 'yellow', 'orange', 'red', 'darkred']
+    category_labels = ['None', 'Trace', 'Light', 'Moderate', 'Heavy', 'Severe']
     
     return categories, counts, colors, category_labels
 
@@ -189,31 +184,19 @@ def print_intensity_breakdown(data, units):
     Print breakdown of intensity categories
     
     Args:
-        data: numpy array of converted data
-        units: "kg/m²" or "dBZ"
+        data: numpy array of converted data (in kg/m²)
+        units: "kg/m²"
     """
-    if units == "kg/m²":
-        # VIL thresholds
-        light_count = np.sum((data > 5) & (data <= 20))
-        moderate_count = np.sum((data > 20) & (data <= 45))
-        heavy_count = np.sum((data > 45) & (data <= 65))
-        severe_count = np.sum(data > 65)
-        
-        print(f"      Light VIL (5-20 kg/m²): {light_count:,} pixels")
-        print(f"      Moderate VIL (20-45 kg/m²): {moderate_count:,} pixels")
-        print(f"      Heavy VIL (45-65 kg/m²): {heavy_count:,} pixels")
-        print(f"      Severe VIL (>65 kg/m²): {severe_count:,} pixels")
-    else:
-        # dBZ thresholds  
-        light_count = np.sum((data > 5) & (data <= 20))
-        moderate_count = np.sum((data > 20) & (data <= 35))
-        heavy_count = np.sum((data > 35) & (data <= 50))
-        severe_count = np.sum(data > 50)
-        
-        print(f"      Light rain (5-20 dBZ): {light_count:,} pixels")
-        print(f"      Moderate rain (20-35 dBZ): {moderate_count:,} pixels")
-        print(f"      Heavy rain (35-50 dBZ): {heavy_count:,} pixels")
-        print(f"      Severe storms (>50 dBZ): {severe_count:,} pixels")
+    # VIL thresholds
+    light_count = np.sum((data > 5) & (data <= 20))
+    moderate_count = np.sum((data > 20) & (data <= 45))
+    heavy_count = np.sum((data > 45) & (data <= 65))
+    severe_count = np.sum(data > 65)
+    
+    print(f"      Light VIL (5-20 kg/m²): {light_count:,} pixels")
+    print(f"      Moderate VIL (20-45 kg/m²): {moderate_count:,} pixels")
+    print(f"      Heavy VIL (45-65 kg/m²): {heavy_count:,} pixels")
+    print(f"      Severe VIL (>65 kg/m²): {severe_count:,} pixels")
 
 
 def determine_data_type_from_filepath(filepath):

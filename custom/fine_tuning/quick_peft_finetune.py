@@ -62,12 +62,15 @@ class LoRAConv2D(keras.layers.Layer):
         filters = base_layer.filters
         kernel_size = base_layer.kernel_size
         
+        # Get input channels from the kernel weights shape
+        in_channels = base_layer.kernel.shape[-2]
+        
         # LoRA matrices: W = W_base + B @ A
         # A: (kernel_h, kernel_w, in_channels, rank)
         # B: (1, 1, rank, filters)
         self.lora_A = self.add_weight(
             name=f"{base_layer.name}_lora_A",
-            shape=(*kernel_size, base_layer.input_shape[-1], rank),
+            shape=(*kernel_size, in_channels, rank),
             initializer="glorot_uniform",
             trainable=True,
         )
@@ -91,26 +94,31 @@ class LoRAConv2D(keras.layers.Layer):
 
 def apply_lora_to_model(model: keras.Model, rank: int) -> keras.Model:
     """Replace Conv2D layers with LoRA-enhanced versions."""
-    # Create a mapping of layer outputs
-    layer_dict = {layer.name: layer for layer in model.layers}
-    
-    # Build new model with LoRA layers
-    def clone_with_lora(layer, input_tensors):
+    # Use keras.models.clone_model to properly handle the architecture
+    def clone_function(layer):
         if isinstance(layer, keras.layers.Conv2D) and layer.filters >= 16:
-            # Apply LoRA to significant Conv2D layers
-            return LoRAConv2D(layer, rank=rank, name=f"lora_{layer.name}")(input_tensors)
+            # Wrap Conv2D layers with LoRA
+            return LoRAConv2D(layer, rank=rank, name=f"lora_{layer.name}")
         else:
             # Keep other layers as-is
-            return layer(input_tensors)
+            return layer.__class__.from_config(layer.get_config())
     
-    # Reconstruct the model
-    inputs = model.input
-    x = inputs
+    # Clone the model with LoRA layers
+    lora_model = keras.models.clone_model(
+        model,
+        clone_function=clone_function,
+    )
     
-    for layer in model.layers[1:]:  # Skip input layer
-        x = clone_with_lora(layer, x)
+    # Copy weights from original model to the cloned model
+    for orig_layer, new_layer in zip(model.layers, lora_model.layers):
+        if hasattr(new_layer, 'base_layer'):
+            # For LoRA layers, copy weights to the base layer
+            new_layer.base_layer.set_weights(orig_layer.get_weights())
+        elif orig_layer.get_weights():
+            # For other layers, copy weights directly
+            new_layer.set_weights(orig_layer.get_weights())
     
-    return keras.Model(inputs=inputs, outputs=x, name="nowcast_lora")
+    return lora_model
 
 
 def build_lora_model(rank: int) -> keras.Model:

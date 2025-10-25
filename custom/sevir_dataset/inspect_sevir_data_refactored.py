@@ -24,7 +24,7 @@ from custom.sevir_dataset.visualization.sevir_visualization import plot_sevir_vi
 
 def print_banner():
     """Print banner"""
-    print("🔍 SEVIR Data Inspector")
+    print("SEVIR Data Inspector")
     print("=" * 60)
     print("Analyzing downloaded SEVIR data structure and content")
     print("=" * 60)
@@ -32,16 +32,16 @@ def print_banner():
 
 def print_summary(sevir_files, seed):
     """Print analysis summary"""
-    print(f"\n🎯 SUMMARY:")
-    print(f"   📊 Found {len(sevir_files)} SEVIR data file(s)")
+    print(f"\n[SUMMARY]")
+    print(f"   - Found {len(sevir_files)} SEVIR data file(s)")
     total_size = sum(size_gb for _, size_gb, _ in sevir_files)
-    print(f"   💾 Total size: {total_size:.2f}GB")
-    print(f"   🎲 Seed used: {seed} (notation: s{seed})")
-    print(f"   ⚡ Recommended approach: Load small batches (10-50 events)")
-    print(f"   🧪 Next step: Test with sample data first")
-    print(f"   📊 Visualization: VIL plots saved with seed notation")
+    print(f"   - Total size: {total_size:.2f}GB")
+    print(f"   - Seed used: {seed} (notation: s{seed})")
+    print(f"   - Recommended approach: Load small batches (10-50 events)")
+    print(f"   - Next step: Test with sample data first")
+    print(f"   - Visualization: VIL plots saved with seed notation")
     
-    print(f"\n🚀 Quick test commands:")
+    print(f"\n[INFO] Quick test commands:")
     print(f"   # Use existing data loader:")
     print(f"   python custom/sevir_dataset/core/sevir_data_loader.py")
     print(f"   # Or import in Python:")
@@ -49,16 +49,16 @@ def print_summary(sevir_files, seed):
     print(f"   # Example usage:")
     print(f"   with SEVIRDataLoader('data/path/file.h5') as loader:")
     print(f"       sample = loader.get_sample(10)  # Load 10 events")
-    print(f"\n📊 To plot specific data with seed:")
+    print(f"\n[INFO] To plot specific data with seed:")
     print(f"   # In Python:")
     print(f"   from custom.sevir_dataset.visualization.sevir_visualization import plot_sevir_vil_data")
     print(f"   plot_sevir_vil_data('path/to/sevir/file.h5', num_events=5, seed={seed})")
-    print(f"\n🔍 For consistency with test_actual_sevir.py, use seed={seed}")
-    print(f"\n💡 The existing SEVIRDataLoader class is ready to use and provides:")
-    print(f"   ✅ Memory-efficient batch loading")
-    print(f"   ✅ Context manager support (with/as)")
-    print(f"   ✅ Automatic file handling")
-    print(f"   ✅ Configurable batch sizes")
+    print(f"\n[INFO] For consistency with test_actual_sevir.py, use seed={seed}")
+    print(f"\n[INFO] The existing SEVIRDataLoader class is ready to use and provides:")
+    print(f"   - Memory-efficient batch loading")
+    print(f"   - Context manager support (with/as)")
+    print(f"   - Automatic file handling")
+    print(f"   - Configurable batch sizes")
 
 
 def analyze_single_file(filepath, size_gb, config):
@@ -102,23 +102,23 @@ def main():
     sevir_files = find_sevir_files()
     
     if not sevir_files:
-        print("\n❌ No SEVIR data files found. Please run download script first.")
+        print("\n[ERROR] No SEVIR data files found. Please run download script first.")
         return 1
     
     # Configuration for reproducible analysis
     config = {
-        'seed': 42,
+        'seed': 4242,
         'num_events': 3,
         'frames_per_event': 4,
         'distribution_events': 50,
         'output_dir': str(paths.root / 'custom' / 'results' / 'sevir_dataset')
     }
     
-    print(f"\n🎲 Analysis Configuration:")
-    print(f"   Random seed: {config['seed']} (notation: s{config['seed']})")
-    print(f"   Events to analyze: {config['num_events']}")
-    print(f"   Frames per event: {config['frames_per_event']}")
-    print(f"   Distribution events: {config['distribution_events']}")
+    print(f"\n[INFO] Analysis Configuration:")
+    print(f"   - Random seed: {config['seed']} (notation: s{config['seed']})")
+    print(f"   - Events to analyze: {config['num_events']}")
+    print(f"   - Frames per event: {config['frames_per_event']}")
+    print(f"   - Distribution events: {config['distribution_events']}")
     
     # Analyze each file
     for filepath, size_gb, size_bytes in sevir_files:

@@ -26,7 +26,7 @@ from sevir_utils import convert_to_physical_units_with_thresholds
 
 def find_sevir_files(base_dir=None):
     """Find all SEVIR data files"""
-    print("\n📁 Searching for SEVIR data files...")
+    print("\n[INFO] Searching for SEVIR data files...")
     
     if base_dir is None:
         base_dir = str(paths.data)
@@ -42,25 +42,25 @@ def find_sevir_files(base_dir=None):
                 sevir_files.append((filepath, size_gb, size_bytes))
     
     if sevir_files:
-        print("✅ Found SEVIR data files:")
+        print("[SUCCESS] Found SEVIR data files:")
         for filepath, size_gb, size_bytes in sevir_files:
             rel_path = os.path.relpath(filepath, base_dir)
-            print(f"   📊 {rel_path} ({size_gb:.2f}GB)")
+            print(f"   - {rel_path} ({size_gb:.2f}GB)")
     else:
-        print("❌ No SEVIR data files found")
+        print("[ERROR] No SEVIR data files found")
     
     return sevir_files
 
 
 def inspect_sevir_structure(filepath):
     """Inspect SEVIR file structure without loading data"""
-    print(f"\n🔍 Inspecting: {os.path.basename(filepath)}")
+    print(f"\n[INFO] Inspecting: {os.path.basename(filepath)}")
     
     try:
         with h5py.File(filepath, 'r') as f:
-            print(f"   📊 File size: {os.path.getsize(filepath) / (1024**3):.2f}GB")
+            print(f"   - File size: {os.path.getsize(filepath) / (1024**3):.2f}GB")
             
-            print("   🗂️  File structure:")
+            print("   - File structure:")
             _print_h5_structure("root", f, -1)
             
             # Look for common SEVIR datasets
@@ -72,13 +72,13 @@ def inspect_sevir_structure(filepath):
             return True
             
     except Exception as e:
-        print(f"   ❌ Error inspecting file: {e}")
+        print(f"   [ERROR] Error inspecting file: {e}")
         return False
 
 
 def analyze_data_loading_strategy(filepath):
     """Analyze optimal data loading strategy"""
-    print(f"\n⚡ Analyzing loading strategy for: {os.path.basename(filepath)}")
+    print(f"\n[INFO] Analyzing loading strategy for: {os.path.basename(filepath)}")
     
     try:
         with h5py.File(filepath, 'r') as f:
@@ -90,13 +90,13 @@ def analyze_data_loading_strategy(filepath):
             return True
             
     except Exception as e:
-        print(f"   ❌ Error analyzing loading strategy: {e}")
+        print(f"   [ERROR] Error analyzing loading strategy: {e}")
         return False
 
 
 def analyze_vil_units(filepath):
-    """Analyze VIL data to determine if it's actually dBZ or kg/m²"""
-    print(f"\n🔬 Analyzing VIL units in: {os.path.basename(filepath)}")
+    """Analyze VIL data to determine units and conversion"""
+    print(f"\n[INFO] Analyzing VIL units in: {os.path.basename(filepath)}")
     
     try:
         with h5py.File(filepath, 'r') as f:
@@ -106,7 +106,7 @@ def analyze_vil_units(filepath):
                 # Sample some data for analysis
                 sample = vil_data[0:10] if vil_data.shape[0] >= 10 else vil_data[0:vil_data.shape[0]]
                 sample_array = np.array(sample)
-                print(f"   📊 Analyzing {sample_array.shape[0]} events for unit detection")
+                print(f"   - Analyzing {sample_array.shape[0]} events for unit detection")
                 
                 _print_basic_statistics(sample_array)
                 unit_type = _determine_unit_type(sample_array)
@@ -117,11 +117,11 @@ def analyze_vil_units(filepath):
                 return sample_array, unit_type
                 
             else:
-                print("   ❌ No 'vil' dataset found in file")
+                print("   [ERROR] No 'vil' dataset found in file")
                 return None, None
                 
     except Exception as e:
-        print(f"   ❌ Error analyzing VIL units: {e}")
+        print(f"   [ERROR] Error analyzing VIL units: {e}")
         return None, None
 
 
@@ -129,14 +129,14 @@ def _print_h5_structure(name, obj, level=0):
     """Helper function to print HDF5 structure"""
     indent = "   " * (level + 1)
     if isinstance(obj, h5py.Group):
-        print(f"{indent}📁 {name}/ (Group with {len(obj)} items)")
+        print(f"{indent}[GROUP] {name}/ (Group with {len(obj)} items)")
         if level < 3:  # Limit depth to avoid too much output
             for key in list(obj.keys())[:5]:  # Show first 5 items
                 _print_h5_structure(key, obj[key], level + 1)
             if len(obj) > 5:
                 print(f"{indent}   ... and {len(obj) - 5} more items")
     elif isinstance(obj, h5py.Dataset):
-        print(f"{indent}📈 {name}: {obj.shape} {obj.dtype} ({obj.nbytes / (1024**2):.1f}MB)")
+        print(f"{indent}[DATASET] {name}: {obj.shape} {obj.dtype} ({obj.nbytes / (1024**2):.1f}MB)")
         
         # Show data range for small datasets or samples
         if obj.size < 1000000:  # Less than 1M elements
@@ -158,47 +158,47 @@ def _print_h5_structure(name, obj, level=0):
 def _check_common_sevir_datasets(f):
     """Helper function to check for common SEVIR datasets"""
     common_keys = ['vil', 'ir069', 'ir107', 'lght']
-    print(f"\n   🎯 Common SEVIR data types found:")
+    print(f"\n   [INFO] Common SEVIR data types found:")
     for key in common_keys:
         if key in f:
             dataset = f[key]
-            print(f"      ✅ {key}: {dataset.shape} {dataset.dtype}")
+            print(f"      [SUCCESS] {key}: {dataset.shape} {dataset.dtype}")
         else:
-            print(f"      ❌ {key}: Not found")
+            print(f"      [NOT FOUND] {key}")
 
 
 def _print_file_attributes(f):
     """Helper function to print file attributes"""
     if f.attrs:
-        print(f"\n   📋 File attributes:")
+        print(f"\n   [INFO] File attributes:")
         for key, value in f.attrs.items():
             print(f"      {key}: {value}")
 
 
 def _analyze_vil_dataset(vil_data, filepath):
     """Helper function to analyze VIL dataset"""
-    print(f"   📊 VIL dataset: {vil_data.shape} {vil_data.dtype}")
+    print(f"   [INFO] VIL dataset: {vil_data.shape} {vil_data.dtype}")
     
     total_size_gb = vil_data.nbytes / (1024**3)
-    print(f"   💾 Total VIL data size: {total_size_gb:.2f}GB")
+    print(f"   [INFO] Total VIL data size: {total_size_gb:.2f}GB")
     
     # Calculate memory-efficient loading strategies
     if len(vil_data.shape) >= 4:  # Assuming (events, height, width, time)
         num_events = vil_data.shape[0]
         event_size_mb = (vil_data.nbytes / num_events) / (1024**2)
         
-        print(f"   🌩️  Number of storm events: {num_events:,}")
-        print(f"   📏 Size per event: {event_size_mb:.1f}MB")
+        print(f"   [INFO] Number of storm events: {num_events:,}")
+        print(f"   [INFO] Size per event: {event_size_mb:.1f}MB")
         
         # Recommendations based on system memory (16GB M1 Mac)
         available_memory_gb = 8  # Conservative estimate for data processing
         max_events_in_memory = int((available_memory_gb * 1024) / event_size_mb)
         
-        print(f"\n   💡 Loading recommendations for 16GB M1 Mac:")
-        print(f"      🚀 Safe batch size: {min(max_events_in_memory, 50)} events")
-        print(f"      ⚡ Quick test: {min(10, num_events)} events")
-        print(f"      🎯 Training subset: {min(500, num_events)} events")
-        print(f"      🏆 Full dataset: {num_events} events (use data generator)")
+        print(f"\n   [RECOMMENDATION] Loading recommendations for 16GB M1 Mac:")
+        print(f"      Safe batch size: {min(max_events_in_memory, 50)} events")
+        print(f"      Quick test: {min(10, num_events)} events")
+        print(f"      Training subset: {min(500, num_events)} events")
+        print(f"      [FULL] Full dataset: {num_events} events (use data generator)")
         
         # Sample a small portion to check data quality
         _sample_data_quality_check(vil_data, filepath)
@@ -206,7 +206,7 @@ def _analyze_vil_dataset(vil_data, filepath):
 
 def _sample_data_quality_check(vil_data, filepath):
     """Helper function to perform data quality check on sample"""
-    print(f"\n   🔬 Data quality check (first event):")
+    print(f"\n   [DATA_CHECK] Data quality check (first event):")
     try:
         sample_event = np.array(vil_data[0])
         print(f"      Shape: {sample_event.shape}")
@@ -223,24 +223,24 @@ def _sample_data_quality_check(vil_data, filepath):
         print_intensity_breakdown(conv_event.reshape(1, *conv_event.shape), units)
         
     except Exception as e:
-        print(f"      ❌ Could not sample data: {e}")
+        print(f"      [ERROR] Could not sample data: {e}")
 
 
 def _analyze_other_datasets(f):
     """Helper function to analyze non-VIL datasets"""
-    print("   ❌ No 'vil' dataset found - checking other data types...")
+    print("   [ERROR] No 'vil' dataset found - checking other data types...")
     for key in f.keys():
         if isinstance(f[key], h5py.Dataset):
             dataset = f[key]
             size_gb = dataset.nbytes / (1024**3)
-            print(f"      📈 {key}: {dataset.shape} ({size_gb:.2f}GB)")
+            print(f"      [DATASET] {key}: {dataset.shape} ({size_gb:.2f}GB)")
 
 
 def _print_basic_statistics(sample_array):
     """Helper function to print basic statistics"""
-    print(f"   📈 Data range: {sample_array.min():.2f} to {sample_array.max():.2f}")
-    print(f"   📊 Mean value: {sample_array.mean():.2f}")
-    print(f"   📉 Standard deviation: {sample_array.std():.2f}")
+    print(f"   [STATS] Data range: {sample_array.min():.2f} to {sample_array.max():.2f}")
+    print(f"   [STATS] Mean value: {sample_array.mean():.2f}")
+    print(f"   [STATS] Standard deviation: {sample_array.std():.2f}")
 
 
 def _determine_unit_type(sample_array):
@@ -248,14 +248,14 @@ def _determine_unit_type(sample_array):
     max_val = sample_array.max()
     min_val = sample_array.min()
     
-    print(f"\n   🎯 Unit Analysis:")
+    print(f"\n   [UNIT_ANALYSIS] Unit Analysis:")
     
     # Check for dBZ characteristics
     if max_val > 80:
-        print(f"      ✅ Likely dBZ: Max value {max_val:.1f} > 80 (typical radar reflectivity)")
+        print(f"      [INFO] Likely dBZ: Max value {max_val:.1f} > 80 (typical radar reflectivity)")
         unit_type = "dBZ (radar reflectivity)"
     elif max_val <= 80 and max_val > 50:
-        print(f"      🤔 Could be either:")
+        print(f"      [INFO] Could be either:")
         print(f"         - dBZ: Max {max_val:.1f} in heavy storm range")
         print(f"         - kg/m²: Max {max_val:.1f} in severe VIL range")
         
@@ -264,13 +264,13 @@ def _determine_unit_type(sample_array):
         high_count = np.sum(sample_array > 40)
         
         if high_count > moderate_count:
-            print(f"      🌩️  High values dominate → Likely dBZ")
+            print(f"      [INFO] High values dominate → Likely dBZ")
             unit_type = "dBZ (radar reflectivity)"
         else:
-            print(f"      🌧️  Moderate values dominate → Possibly kg/m²")
+            print(f"      [INFO] Moderate values dominate → Possibly kg/m²")
             unit_type = "possibly kg/m² (VIL)"
     else:
-        print(f"      ❓ Unclear: Max {max_val:.1f} could be either unit")
+        print(f"      [INFO] Unclear: Max {max_val:.1f} could be either unit")
         unit_type = "unclear"
     
     return unit_type
@@ -281,7 +281,7 @@ def _check_zero_percentage(sample_array):
     zero_count = np.sum(sample_array == 0)
     total_count = sample_array.size
     zero_percentage = (zero_count / total_count) * 100
-    print(f"   🌫️  Zero values: {zero_percentage:.1f}% of total pixels")
+    print(f"   [INFO] Zero values: {zero_percentage:.1f}% of total pixels")
     
     if zero_percentage > 50:
         print(f"      → High zero percentage typical of radar data")
@@ -289,14 +289,14 @@ def _check_zero_percentage(sample_array):
 
 def _print_dataset_attributes(vil_data, f):
     """Helper function to print dataset and file attributes"""
-    print(f"\n   📋 Dataset attributes:")
+    print(f"\n   [ATTRIBUTES] Dataset attributes:")
     if hasattr(vil_data, 'attrs') and len(vil_data.attrs) > 0:
         for key, value in vil_data.attrs.items():
             print(f"      {key}: {value}")
     else:
         print(f"      No attributes found")
     
-    print(f"\n   📋 File-level attributes:")
+    print(f"\n   [ATTRIBUTES] File-level attributes:")
     if len(f.attrs) > 0:
         for key, value in f.attrs.items():
             print(f"      {key}: {value}")
@@ -309,17 +309,17 @@ def _print_conclusion(sample_array, unit_type):
     min_val = sample_array.min()
     max_val = sample_array.max()
     
-    print(f"\n   🏁 CONCLUSION:")
-    print(f"      📊 Data range: {min_val:.1f} to {max_val:.1f}")
-    print(f"      🎯 Most likely units: {unit_type}")
+    print(f"\n   [CONCLUSION] CONCLUSION:")
+    print(f"      [DATA] Data range: {min_val:.1f} to {max_val:.1f}")
+    print(f"      [UNITS] Most likely units: {unit_type}")
     
     if "dBZ" in unit_type:
-        print(f"      💡 Recommendation: Treat as radar reflectivity (dBZ)")
+        print(f"      [RECOMMENDATION] Recommendation: Treat as radar reflectivity (dBZ)")
         print(f"         - Use for precipitation intensity mapping")
         print(f"         - 0-20: light, 20-40: moderate, 40+: heavy")
     elif "kg/m²" in unit_type:
-        print(f"      💡 Recommendation: Treat as VIL (kg/m²)")
+        print(f"      [RECOMMENDATION] Recommendation: Treat as VIL (kg/m²)")
         print(f"         - Use for total liquid water content")
         print(f"         - 0-20: light, 20-50: moderate, 50+: heavy")
     else:
-        print(f"      💡 Recommendation: Check SEVIR documentation")
+        print(f"      [RECOMMENDATION] Recommendation: Check SEVIR documentation")

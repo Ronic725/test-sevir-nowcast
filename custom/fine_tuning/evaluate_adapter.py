@@ -4,7 +4,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -59,7 +59,12 @@ def build_lora_model(rank: int, lora_weights_path: Path) -> keras.Model:
     if not model_path.exists():
         raise FileNotFoundError(f"Model weights not found at {model_path}")
     
-    base_model = keras.models.load_model(str(model_path), compile=False)
+    # Load with custom objects to avoid warnings
+    base_model = keras.models.load_model(
+        str(model_path), 
+        compile=False,
+        custom_objects={'LoRAConv2D': LoRAConv2D}
+    )
     
     # Freeze base model
     for layer in base_model.layers:
@@ -85,17 +90,70 @@ def build_lora_model(rank: int, lora_weights_path: Path) -> keras.Model:
     return lora_model
 
 
-def evaluate_model(model: keras.Model, X: np.ndarray, y: np.ndarray) -> Tuple[float, float]:
-    _y_pred, mse, mae, *_ = test_on_real_sevir(model, X, y)
-    if mse is None or mae is None:
+def evaluate_model(model: keras.Model, X: np.ndarray, y: np.ndarray) -> Tuple[float, float, np.ndarray, np.ndarray, np.ndarray]:
+    """Evaluate model and return metrics plus predictions for visualization."""
+    y_pred, mse, mae, y_pred_dbz, y_test_dbz = test_on_real_sevir(model, X, y)
+    if mse is None or mae is None or y_pred is None or y_pred_dbz is None or y_test_dbz is None:
         raise RuntimeError("test_on_real_sevir returned empty metrics; verify inputs.")
-    return float(mse), float(mae)
+    return float(mse), float(mae), y_pred, y_pred_dbz, y_test_dbz
+
+
+def print_data_statistics(X: np.ndarray, y: np.ndarray, y_pred: np.ndarray, 
+                         y_pred_dbz: np.ndarray, y_test_dbz: np.ndarray) -> None:
+    """Print comprehensive statistics about input data and model output."""
+    from config.project_paths import get_paths
+    paths = get_paths()
+    SEVIR_MEAN = paths.sevir_mean
+    SEVIR_SCALE = paths.sevir_scale
+    
+    print("\n" + "=" * 60)
+    print("📊 DATA STATISTICS")
+    print("=" * 60)
+    
+    # Input statistics (normalized)
+    X_dbz = X * SEVIR_SCALE + SEVIR_MEAN
+    print("\n🔹 Input Data (X):")
+    print(f"   Shape: {X.shape}")
+    print(f"   Normalized range: [{X.min():.4f}, {X.max():.4f}]")
+    print(f"   Normalized mean: {X.mean():.4f}, std: {X.std():.4f}")
+    print(f"   dBZ range: [{X_dbz.min():.2f}, {X_dbz.max():.2f}]")
+    print(f"   dBZ mean: {X_dbz.mean():.2f}, std: {X_dbz.std():.2f}")
+    
+    # Target statistics (normalized)
+    print("\n🔹 Target Data (y):")
+    print(f"   Shape: {y.shape}")
+    print(f"   Normalized range: [{y.min():.4f}, {y.max():.4f}]")
+    print(f"   Normalized mean: {y.mean():.4f}, std: {y.std():.4f}")
+    print(f"   dBZ range: [{y_test_dbz.min():.2f}, {y_test_dbz.max():.2f}]")
+    print(f"   dBZ mean: {y_test_dbz.mean():.2f}, std: {y_test_dbz.std():.2f}")
+    
+    # Prediction statistics (normalized)
+    print("\n🔹 Model Predictions (y_pred):")
+    print(f"   Shape: {y_pred.shape}")
+    print(f"   Normalized range: [{y_pred.min():.4f}, {y_pred.max():.4f}]")
+    print(f"   Normalized mean: {y_pred.mean():.4f}, std: {y_pred.std():.4f}")
+    print(f"   dBZ range: [{y_pred_dbz.min():.2f}, {y_pred_dbz.max():.2f}]")
+    print(f"   dBZ mean: {y_pred_dbz.mean():.2f}, std: {y_pred_dbz.std():.2f}")
+    
+    # Distribution comparison
+    print("\n🔹 Distribution Comparison:")
+    print(f"   Target vs Prediction (normalized):")
+    print(f"      Mean difference: {abs(y.mean() - y_pred.mean()):.4f}")
+    print(f"      Std difference: {abs(y.std() - y_pred.std()):.4f}")
+    print(f"   Target vs Prediction (dBZ):")
+    print(f"      Mean difference: {abs(y_test_dbz.mean() - y_pred_dbz.mean()):.2f} dBZ")
+    print(f"      Std difference: {abs(y_test_dbz.std() - y_pred_dbz.std()):.2f} dBZ")
 
 
 def maybe_visualize(model: keras.Model, X: np.ndarray, y: np.ndarray) -> None:
+    """Visualize predictions using properly scaled data."""
     from custom.testing.test_actual_sevir import visualize_real_sevir_results
-
+    
+    # Get predictions in normalized form
     predictions = model.predict(X, batch_size=2, verbose=0)
+    
+    # visualize_real_sevir_results expects normalized data and will convert to dBZ internally
+    # So we pass normalized X, y, and predictions
     visualize_real_sevir_results(X, y, predictions, sample_idx=0)
 
 
@@ -118,10 +176,12 @@ def main(args: argparse.Namespace) -> None:
 
     # Evaluate both models
     print("\n🧪 Evaluating baseline model...")
-    base_mse, base_mae = evaluate_model(baseline, X, y)
+    base_mse, base_mae, base_pred, base_pred_dbz, base_test_dbz = evaluate_model(baseline, X, y)
+    print_data_statistics(X, y, base_pred, base_pred_dbz, base_test_dbz)
     
     print("\n🧪 Evaluating LoRA model...")
-    lora_mse, lora_mae = evaluate_model(lora_model, X, y)
+    lora_mse, lora_mae, lora_pred, lora_pred_dbz, lora_test_dbz = evaluate_model(lora_model, X, y)
+    print_data_statistics(X, y, lora_pred, lora_pred_dbz, lora_test_dbz)
 
     # Display results
     print("\n" + "=" * 60)

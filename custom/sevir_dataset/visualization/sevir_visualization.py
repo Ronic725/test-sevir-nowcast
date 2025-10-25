@@ -9,31 +9,37 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
-from datetime import datetime
+import seaborn as sns
 import random
+from datetime import datetime
+from pathlib import Path
 
-# Add the core directory to sys.path to import sevir_utils
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
-from sevir_utils import (
-    convert_to_physical_units_with_thresholds,
+# Add project paths
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import from core utilities
+from custom.sevir_dataset.core.sevir_utils import (
+    convert_raw_vil_to_physical,
+    VIL_SCALE,
     get_weather_category_counts,
     calculate_statistics,
     determine_data_type_from_filepath
 )
 
 
-def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, output_dir=None):
+def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, output_dir='.'):
     """Plot sample SEVIR VIL data for visualization with controlled seeding"""
-    print(f"\n📊 Plotting SEVIR VIL data from: {os.path.basename(filepath)}")
+    print(f"\n[INFO] Plotting SEVIR VIL data from: {os.path.basename(filepath)}")
     
     try:
         with h5py.File(filepath, 'r') as f:
             if 'vil' not in f:
-                print("   ❌ No 'vil' dataset found in file")
+                print("   [ERROR] No 'vil' dataset found in file")
                 return False
             
             vil_data = f['vil']
-            print(f"   📈 VIL dataset shape: {vil_data.shape}")
+            print(f"   [INFO] VIL dataset shape: {vil_data.shape}")
             
             # Use seeded random sampling for consistency
             max_events = min(num_events, vil_data.shape[0])
@@ -44,16 +50,17 @@ def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, out
             
             available_indices = list(range(vil_data.shape[0]))
             selected_indices = sorted(random.sample(available_indices, max_events))
-            sample_data = np.array(vil_data[selected_indices])  # Ensure numpy array
-            print(f"   🎲 Randomly selected events (seed={seed}): {selected_indices}")
+            raw_sample_data = np.array(vil_data[selected_indices])
+            print(f"   [INFO] Randomly selected events (seed={seed}): {selected_indices}")
             
-            print(f"   📊 Loaded {max_events} events for visualization")
-            print(f"   🌩️  Raw data range: {sample_data.min():.2f} to {sample_data.max():.2f}")
+            # Convert raw data to physical units
+            sample_data = convert_raw_vil_to_physical(raw_sample_data)
             
-            # Convert to physical units with appropriate thresholds
-            converted_data, vmin, vmax, units, thresholds_info = convert_to_physical_units_with_thresholds(
-                sample_data, data_type="auto", filepath=filepath
-            )
+            print(f"   [INFO] Loaded {max_events} events for visualization")
+            print(f"   [INFO] Physical data range: {sample_data.min():.2f} to {sample_data.max():.2f} kg/m²")
+            
+            units = "kg/m²"
+            vmin, vmax = 0, 80  # Standard VIL range
             
             # Create visualization with proper spacing for colorbar
             fig, axes = plt.subplots(max_events, frames_per_event, figsize=(22, 4*max_events))
@@ -63,7 +70,7 @@ def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, out
             last_im = None  # Keep track of last image for colorbar
             
             for event_idx in range(max_events):
-                event_data = converted_data[event_idx]  # Use converted data
+                event_data = sample_data[event_idx]
                 total_frames = event_data.shape[-1] if len(event_data.shape) > 2 else 1
                 
                 # Select frames to display (evenly spaced)
@@ -109,48 +116,70 @@ def plot_sevir_vil_data(filepath, num_events=3, frames_per_event=4, seed=42, out
                 full_path = filename
 
             plt.savefig(full_path, dpi=150, bbox_inches='tight')
-            print(f"   ✅ Plot saved to: {full_path}")
+            print(f"   [SUCCESS] Plot saved to: {full_path}")
             
             # Show statistics with physical units
-            _print_sample_statistics(converted_data, units, seed)
+            _print_sample_statistics(sample_data, units, seed)
             
             plt.close()
             return True
             
     except Exception as e:
-        print(f"   ❌ Error plotting data: {e}")
+        print(f"   [ERROR] Error plotting data: {e}")
         return False
 
 
-def plot_vil_distribution(filepath, max_events=50, seed=42, output_dir=None):
-    """
-    Plot distribution of VIL values to understand data characteristics
-    """
-    print(f"\n📊 Plotting VIL distribution from: {os.path.basename(filepath)}")
+def plot_vil_distribution(filepath, max_events=50, seed=42, output_dir='.'):
+    """Plot distribution of VIL values"""
+    print(f"\n[INFO] Plotting VIL distribution for: {os.path.basename(filepath)}")
     
     try:
         with h5py.File(filepath, 'r') as f:
             if 'vil' not in f:
-                print("   ❌ No 'vil' dataset found in file")
+                print("   [ERROR] No 'vil' dataset found in file")
                 return False
             
             vil_data = f['vil']
-            print(f"   📈 VIL dataset shape: {vil_data.shape}")
+            print(f"   [INFO] VIL dataset shape: {vil_data.shape}")
             
-            # Sample data
-            sample_data = _sample_data_for_distribution(vil_data, max_events, seed)
+            # Ensure we don't exceed available events
+            num_available = vil_data.shape[0]
+            if max_events > num_available:
+                print(f"   [INFO] max_events ({max_events}) > available ({num_available}). Using {num_available}.")
+                max_events = num_available
             
-            # Convert to physical units
-            converted_data, vmin, vmax, units, thresholds_info = convert_to_physical_units_with_thresholds(
-                sample_data, data_type="auto", filepath=filepath
-            )
+            # Sample events for distribution analysis
+            np.random.seed(seed)
+            sample_indices = np.random.choice(num_available, size=max_events, replace=False)
+            print(f"   [INFO] Randomly selected {max_events} events (seed={seed}) from {num_available} total")
             
-            # Calculate statistics
-            stats = calculate_statistics(converted_data, units)
-            _print_distribution_stats(stats)
+            # Load raw data and convert to physical units
+            raw_sample = vil_data[sorted(sample_indices), :, :, :]
+            physical_sample = convert_raw_vil_to_physical(raw_sample)
             
-            # Create distribution plots
-            fig = _create_distribution_subplots(converted_data, units, stats)
+            # Flatten the array and filter out zero/NaN values for a cleaner plot
+            flat_data = physical_sample.flatten()
+            flat_data = flat_data[flat_data > 0.1]  # Ignore near-zero values
+            
+            if flat_data.size == 0:
+                print("   [INFO] No significant VIL data to plot after filtering.")
+                return False
+
+            # Create plot
+            fig, ax = plt.subplots(figsize=(12, 7))
+            sns.histplot(flat_data, bins=50, kde=True, ax=ax, color='skyblue')
+            
+            ax.set_title(f'Distribution of VIL Values (Physical Units)\n{os.path.basename(filepath)}', fontsize=16)
+            ax.set_xlabel('VIL (kg/m²)', fontsize=12)
+            ax.set_ylabel('Frequency', fontsize=12)
+            ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+            
+            # Add statistics
+            mean_val = np.mean(flat_data)
+            median_val = np.median(flat_data)
+            ax.axvline(mean_val, color='r', linestyle='--', label=f'Mean: {mean_val:.2f}')
+            ax.axvline(median_val, color='g', linestyle='-', label=f'Median: {median_val:.2f}')
+            ax.legend()
             
             # Save plot
             data_type = determine_data_type_from_filepath(filepath)
@@ -163,75 +192,29 @@ def plot_vil_distribution(filepath, max_events=50, seed=42, output_dir=None):
             else:
                 full_path = filename
                 
-            plt.savefig(full_path, dpi=150, bbox_inches='tight')
-            print(f"   ✅ Distribution plot saved to: {full_path}")
+            plt.tight_layout()
+            plt.savefig(full_path, dpi=150)
+            print(f"   [SUCCESS] Distribution plot saved to: {full_path}")
+            plt.close(fig)
             
-            # Print detailed statistics
-            _print_detailed_statistics(stats)
-            
-            plt.close()
             return True
             
     except Exception as e:
-        print(f"   ❌ Error plotting distribution: {e}")
+        print(f"   [ERROR] Error plotting distribution: {e}")
         return False
 
 
-def _sample_data_for_distribution(vil_data, max_events, seed):
-    """Helper function to sample data for distribution analysis"""
-    total_events = vil_data.shape[0]
-    sample_size = min(max_events, total_events)
-    
-    # Set random seed for reproducible sampling
-    random.seed(seed)
-    np.random.seed(seed)
-    
-    if total_events > sample_size:
-        available_indices = list(range(total_events))
-        selected_indices = sorted(random.sample(available_indices, sample_size))
-        sample_data = np.array(vil_data[selected_indices])
-        print(f"   🎲 Randomly selected {sample_size} events (seed={seed}) from {total_events} total")
-    else:
-        sample_data = np.array(vil_data[:])
-        print(f"   📊 Using all {total_events} events")
-    
-    return sample_data
-
-
-def _print_distribution_stats(stats):
-    """Helper function to print distribution statistics"""
-    print(f"   📊 Distribution analysis:")
-    print(f"      Total pixels: {stats['total_pixels']:,}")
-    print(f"      Non-zero pixels: {stats['non_zero_pixels']:,} ({stats['non_zero_percentage']:.1f}%)")
-    print(f"      Zero pixels: {stats['zero_pixels']:,} ({stats['zero_percentage']:.1f}%)")
-
-
-def _print_detailed_statistics(stats):
-    """Helper function to print detailed statistics"""
-    if 'mean' in stats:
-        units = stats['units']
-        print(f"\n   📈 Key Statistics ({units}):")
-        print(f"      Mean (non-zero): {stats['mean']:.2f}")
-        print(f"      Median (non-zero): {stats['median']:.2f}")
-        print(f"      Std Dev (non-zero): {stats['std']:.2f}")
-        print(f"      P50: {stats['p50']:.2f}")
-        print(f"      P90: {stats['p90']:.2f}")
-        print(f"      P95: {stats['p95']:.2f}")
-        print(f"      P99: {stats['p99']:.2f}")
-        print(f"      Max: {stats['max']:.2f}")
-
-
-def _print_sample_statistics(converted_data, units, seed):
+def _print_sample_statistics(sample_data, units, seed):
     """Helper function to print sample statistics"""
-    from sevir_utils import print_intensity_breakdown
+    from custom.sevir_dataset.core.sevir_utils import print_intensity_breakdown
     
-    print(f"\n   📈 Data Statistics (seed={seed}):")
-    print(f"      Non-zero pixels: {np.count_nonzero(converted_data):,} / {converted_data.size:,}")
-    print(f"      Mean intensity: {converted_data.mean():.2f} {units}")
-    print(f"      Max intensity: {converted_data.max():.2f} {units}")
+    print(f"\n   [INFO] Data Statistics (seed={seed}):")
+    print(f"      Non-zero pixels: {np.count_nonzero(sample_data):,} / {sample_data.size:,}")
+    print(f"      Mean intensity: {sample_data.mean():.2f} {units}")
+    print(f"      Max intensity: {sample_data.max():.2f} {units}")
     
-    # Apply thresholds based on physical units
-    print_intensity_breakdown(converted_data, units)
+    # Print breakdown by intensity
+    print_intensity_breakdown(sample_data, units)
 
 
 def _create_distribution_subplots(converted_data, units, stats):
